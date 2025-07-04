@@ -1,0 +1,19 @@
+# Python
+.venv/
+venv/
+.env
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+env/
+*.sqlite3
+*.log
+.ipynb_checkpoints/
+
+# VSCode
+.vscode/
+
+# Mac
+.DS_Store
