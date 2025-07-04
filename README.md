@@ -1,12 +1,3 @@
-
-# Project Title
-
-A brief description of what this project does and who it's for
-
-README.md
-md
-Copy
-Edit
 # AI Revenue Assistant Demo
 
 This is a technical demo project that showcases how an AI agent can analyze structured CRM data and answer natural language business questions.
