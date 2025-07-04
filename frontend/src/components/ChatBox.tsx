@@ -10,8 +10,8 @@ type Message = {
 }
 
 type ChatBoxProps = {
-  fileId: string
-  onAsk: (fileId: string, question: string) => Promise<{ answer: string; chart?: string | null }>
+  fileId: string | string[]
+  onAsk: (fileIds: string[], question: string) => Promise<{ answer: string; chart?: string | null }>
 }
 
 export default function ChatBox({ fileId, onAsk }: ChatBoxProps) {
@@ -29,7 +29,7 @@ export default function ChatBox({ fileId, onAsk }: ChatBoxProps) {
     setLoading(true)
 
     try {
-      const res = await onAsk(fileId, question)
+      const res = await onAsk(Array.isArray(fileId) ? fileId : [fileId], question)
       const updatedMsg = {
         question,
         answer: res.answer,

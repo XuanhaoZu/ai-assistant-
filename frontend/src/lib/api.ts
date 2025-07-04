@@ -18,9 +18,11 @@ export async function uploadFile(file: File) {
   return res.data
 }
 
-export async function askQuestion(fileId: string, question: string) {
+export async function askQuestion(fileId: string | string[], question: string) {
+  const cleanedFileId = Array.isArray(fileId) ? fileId[0] : fileId;
+
   const res = await axios.post(`${BASE_URL}/query`, {
-    file_id: fileId,
+    file_id: cleanedFileId,
     question: question,
   });
 
@@ -52,4 +54,19 @@ export async function fetchPreviewData(fileId: string) {
     params: { file_id: fileId },
   })
   return res.data
+}
+
+
+export async function askMultiFiles(fileIds: string[], question: string) {
+  const res = await axios.post(`${BASE_URL}/multi-query`, {
+    file_ids: fileIds, 
+    question: question,
+  })
+
+  const { result, chart } = res.data
+
+  return {
+    answer: result,
+    chart: chart || null,
+  }
 }

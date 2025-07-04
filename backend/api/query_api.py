@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Body
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import Optional
@@ -86,3 +86,94 @@ async def preview_data(file_id: str = Query(..., description="The filename to pr
         return JSONResponse({"error": f"Failed to preview file: {str(e)}"}, status_code=500)
 
 
+# @router.post("/multi-query")
+# async def query_multi_data1(
+#     question: str = Body(...),
+#     file_ids: list[str] = Body(...)
+# ):
+#     dfs = []
+#     previews = []
+#     for fid in file_ids:
+#         file_path = os.path.join(DATA_DIR, fid)
+#         if not os.path.isfile(file_path):
+#             return {"error": f"File {fid} not found"}
+#         df = pd.read_csv(file_path)
+#         dfs.append(df)
+#         previews.append(df.head(3).to_string(index=False))
+
+#     preview_section = "\n\n".join(
+#         f"Sample from {fid}:\n{preview}"
+#         for fid, preview in zip(file_ids, previews)
+#     )
+
+#     full_prompt = f"""
+#     You are a senior revenue analyst. You have access to the following datasets:
+
+#     {preview_section}
+
+#     Answer the question based on all the data. You may merge, compare, or analyze trends across files as needed.
+
+#     Question:
+#     {question}
+#     """
+
+#     from agent import create_custom_agent, refine_answer
+#     combined_agent = create_custom_agent(dfs, "+".join(file_ids))
+#     result = combined_agent.invoke({"input": full_prompt})
+#     answer = result["output"] if isinstance(result, dict) else result
+#     refined = refine_answer(answer)
+#     return {"result": refined}
+
+
+@router.post("/multi-query")
+async def query_multi_data(
+    question: str = Body(...),
+    file_ids: list[str] = Body(...)
+):
+    dfs = []
+    previews = []
+
+    for fid in file_ids:
+        file_path = os.path.join(DATA_DIR, fid)
+        if not os.path.isfile(file_path):
+            return {"error": f"File {fid} not found"}
+        df = pd.read_csv(file_path)
+        dfs.append(df)
+        previews.append(df.head(3).to_string(index=False))
+
+    preview_section = "\n\n".join(
+        f"df{i} (from {fid}):\n{preview}"
+        for i, (fid, preview) in enumerate(zip(file_ids, previews))
+    )
+
+    df_info = "\n".join(
+        f"- df{i}: loaded from `{fid}`"
+        for i, fid in enumerate(file_ids)
+    )
+
+    full_prompt = f"""
+You are a senior revenue analyst.
+
+The following pandas DataFrames are already loaded into memory and available for use:
+
+{df_info}
+
+Do not use read_csv or attempt to load any files. Use df0, df1, etc. directly.
+
+Here are a few preview rows to help you understand the structure:
+
+{preview_section}
+
+Question:
+{question}
+    """
+
+    from agent import create_custom_agent, refine_answer
+
+    df_map = {f"df{i}": df for i, df in enumerate(dfs)}
+    combined_agent = create_custom_agent(df_map, "+".join(file_ids))
+    result = combined_agent.invoke({"input": full_prompt})
+    answer = result["output"] if isinstance(result, dict) else result
+    refined = refine_answer(answer)
+
+    return {"result": refined}

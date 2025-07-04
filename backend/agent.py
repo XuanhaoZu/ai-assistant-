@@ -1,5 +1,3 @@
-# ✅ agent.py（最终版）
-
 import os
 import io
 import base64
@@ -15,7 +13,7 @@ from langchain.memory import ConversationBufferMemory
 from langchain_experimental.tools import PythonREPLTool
 from langchain.tools import Tool
 
-matplotlib.use('Agg')  # 防止弹窗
+matplotlib.use('Agg')
 load_dotenv()
 
 agent_cache = {}
@@ -50,12 +48,23 @@ def refine_answer(raw_answer: str, model="gpt-4"):
         print("[Refine error]", str(e))
         return raw_answer
 
-def create_custom_agent(df, file_id):
+def create_custom_agent(df_or_dfs, file_id):
     llm = ChatOpenAI(model_name="gpt-4", temperature=0)
 
     def pandas_tool_func(query):
         try:
-            local_vars = {"df": df}
+            local_vars = {}
+
+            if isinstance(df_or_dfs, list):
+                for i, df in enumerate(df_or_dfs):
+                    local_vars[f"df{i}"] = df
+                local_vars["df"] = df_or_dfs[0]
+                local_vars["dfs"] = df_or_dfs
+            else:
+                local_vars["df"] = df_or_dfs
+                local_vars["dfs"] = [df_or_dfs]
+                local_vars["df0"] = df_or_dfs
+
             exec(f"result = {query}", {}, local_vars)
             return str(local_vars["result"])
         except Exception as e:
@@ -64,7 +73,7 @@ def create_custom_agent(df, file_id):
     pandas_tool = Tool(
         name="pandas_tool",
         func=pandas_tool_func,
-        description="Use this tool to answer questions about the data in the dataframe 'df'."
+        description="Use this tool to analyze the DataFrame. Use `df0`, `df1`, ... for each uploaded file. `df` is the first file by default. `dfs` is the full list."
     )
 
     memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
@@ -81,11 +90,11 @@ def create_custom_agent(df, file_id):
     memory_cache[file_id] = memory
     return agent
 
-def query_agent(df, question, file_id=None):
+def query_agent(df_or_dfs, question, file_id=None):
     if file_id in agent_cache:
         agent = agent_cache[file_id]
     else:
-        agent = create_custom_agent(df, file_id)
+        agent = create_custom_agent(df_or_dfs, file_id)
 
     memory = memory_cache[file_id]
     print(f"\n🧠 Chat History for {file_id}:\n{memory.load_memory_variables({})['chat_history']}\n")
@@ -93,7 +102,6 @@ def query_agent(df, question, file_id=None):
     result = agent.invoke({"input": question})
     answer = result["output"] if isinstance(result, dict) else result
 
-    # 图表捕捉
     buf = io.BytesIO()
     try:
         fig = plt.gcf()
@@ -109,23 +117,8 @@ def query_agent(df, question, file_id=None):
     except Exception as e:
         print("[Chart ERROR]", str(e))
         chart_data_url = None
-    finally: 
+    finally:
         plt.close()
 
     refined = refine_answer(answer)
     return {"answer": refined, "chart": chart_data_url}
-
-def df_exec_tool(df):
-    def run_code(code: str):
-        try:
-            local_vars = {"df": df}
-            exec(code, {}, local_vars)
-            return str(local_vars.get("best_account", "Executed"))
-        except Exception as e:
-            return f"Python exec error: {str(e)}"
-    return Tool(
-        name="PythonWithDF",
-        func=run_code,
-        description="Use this tool to run Python code using the DataFrame 'df'"
-    )
- 
