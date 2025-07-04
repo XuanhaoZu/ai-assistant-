@@ -22,9 +22,16 @@ export async function askQuestion(fileId: string, question: string) {
   const res = await axios.post(`${BASE_URL}/query`, {
     file_id: fileId,
     question: question,
-  })
-  return res.data
+  });
+
+  const { result, chart } = res.data;
+
+  return {
+    answer: result,
+    chart: chart || null,
+  };
 }
+
 
 
 export async function fetchDemoFiles() {

@@ -24,14 +24,38 @@ async def query_data(payload: QueryRequest):
     else:
         df = pd.read_csv(os.path.join(DATA_DIR, "customer_churn_dataset.csv"))
 
-    full_prompt = (
-        "You are a data analysis expert. Please analyze the CSV data provided below strictly based on the data, "
-        "and return only conclusions derived from the data. Use tables, customer lists, or statistical summaries whenever possible. "
-        "Avoid vague explanations. The question is:\n" + payload.question
-    )
+    sample_rows = df.head(3).replace({np.nan: None}).to_dict(orient="records")
+    print("✅✅✅✅✅✅✅Sample!!")
+    full_prompt = f"""
+    You are a business analyst helping a revenue team make decisions based on CSV data.
 
-    answer = query_agent(df, full_prompt)
-    return {"result": answer}
+    Instructions:
+    - First, review the column names and sample rows provided below.
+    - Answer the user's business question based on the full dataset `df`.
+    - Perform data exploration as needed (e.g., groupby, value_counts, aggregations).
+    - When providing insights, include quantitative evidence (e.g., percentages, totals).
+    - If helpful, use Python pandas and matplotlib to perform calculations and plot charts.
+    - DO NOT use plt.show().
+    - Always explain your findings in clear, concise business language.
+    - Always write in a way that supports business decisions: mention trends, patterns, comparisons.
+    - Do NOT explain technical code unless asked. Focus on insights.
+    - If the question cannot be answered with the data, explain why.
+    - The **full dataset is already loaded as a DataFrame called `df`**, and should be used for all analysis and charting.
+    - Below are just **sample rows to help you understand the structure**. **Do NOT use these for computation.**
+
+    Here is the user's question:
+    {payload.question}
+
+    Here are a few rows from the uploaded CSV file:
+    {sample_rows}
+    """
+
+    result = query_agent(df, full_prompt, file_id=payload.file_id)
+
+    return {
+        "result": result["answer"],
+        "chart": result["chart"]
+    }
 
 @router.get("/preview")
 async def preview_data(file_id: str = Query(..., description="The filename to preview")):

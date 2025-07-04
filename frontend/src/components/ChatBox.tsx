@@ -11,13 +11,14 @@ type Message = {
 
 type ChatBoxProps = {
   fileId: string
-  onAsk: (fileId: string, question: string) => Promise<{ result: string; chart?: string | null }>
+  onAsk: (fileId: string, question: string) => Promise<{ answer: string; chart?: string | null }>
 }
 
 export default function ChatBox({ fileId, onAsk }: ChatBoxProps) {
   const [question, setQuestion] = useState('')
   const [messages, setMessages] = useState<Message[]>([])
   const [loading, setLoading] = useState(false)
+  const [enlargedImage, setEnlargedImage] = useState<string | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
   const handleAsk = async () => {
@@ -31,7 +32,7 @@ export default function ChatBox({ fileId, onAsk }: ChatBoxProps) {
       const res = await onAsk(fileId, question)
       const updatedMsg = {
         question,
-        answer: res.result,
+        answer: res.answer,
         chart: res.chart || null,
       }
       setMessages((prev) => [...prev.slice(0, -1), updatedMsg])
@@ -60,11 +61,27 @@ export default function ChatBox({ fileId, onAsk }: ChatBoxProps) {
             <img
               src={msg.chart}
               alt="chart"
-              className="mt-4 max-w-full rounded-xl border border-white/10 shadow"
+              onClick={() => setEnlargedImage(msg.chart)}
+              className="mt-4 max-w-full rounded-xl border border-white/10 shadow cursor-pointer hover:opacity-80 transition"
             />
           )}
         </div>
       ))}
+
+      {/* Enlarged Image Modal */}
+      {enlargedImage && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+          onClick={() => setEnlargedImage(null)}
+        >
+          <img
+            src={enlargedImage}
+            alt="Enlarged chart"
+            onClick={(e) => e.stopPropagation()}
+            className="max-w-[90%] max-h-[90%] rounded-xl border border-white/20 shadow-lg"
+          />
+        </div>
+      )}
 
       <div className="flex items-center gap-3 border border-white/10 bg-white/5 backdrop-blur-sm p-3 rounded-2xl">
         <input
